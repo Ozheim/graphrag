@@ -166,14 +166,22 @@ class LanguageModelConfig(BaseModel):
 
         If not using LiteLLM provider, set the encoding model based on the LLM model name.
         This is for backward compatibility with existing fnllm provider until fnllm is removed.
+        
+        Custom model types bypass this validation as they may use non-OpenAI tokenizers.
 
         Raises
         ------
         KeyError
             If the model name is not recognized.
         """
+        # Skip encoding model validation for custom model types
+        is_standard_type = isinstance(self.type, ModelType) or self.type in [
+            e.value for e in ModelType
+        ]
+        
         if (
-            self.type != ModelType.Chat
+            is_standard_type
+            and self.type != ModelType.Chat
             and self.type != ModelType.Embedding
             and self.encoding_model.strip() == ""
         ):
