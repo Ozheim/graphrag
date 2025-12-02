@@ -13,6 +13,7 @@ from graphrag.config.enums import InputFileType
 from graphrag.config.models.input_config import InputConfig
 from graphrag.index.input.csv import load_csv
 from graphrag.index.input.json import load_json
+from graphrag.index.input.pdf import load_pdf
 from graphrag.index.input.text import load_text
 from graphrag.storage.pipeline_storage import PipelineStorage
 
@@ -21,6 +22,7 @@ loaders: dict[str, Callable[..., Awaitable[pd.DataFrame]]] = {
     InputFileType.text: load_text,
     InputFileType.csv: load_csv,
     InputFileType.json: load_json,
+    "pdf": load_pdf,  # Add PDF loader
 }
 
 
