@@ -40,13 +40,24 @@ class LanguageModelConfig(BaseModel):
         when one is not expected such as the case of using Azure
         Managed Identity.
 
+        Custom model types (e.g., vertex-chat-adc) that are not in the standard
+        ModelType enum bypass this validation to allow alternative authentication methods.
+
         Raises
         ------
         ApiKeyMissingError
             If the API key is missing and is required.
         """
-        if self.auth_type == AuthType.APIKey and (
-            self.api_key is None or self.api_key.strip() == ""
+        # Skip API key validation for custom model types (not in ModelType enum)
+        # This allows custom providers to use alternative authentication (e.g., ADC, IAM)
+        is_standard_type = isinstance(self.type, ModelType) or self.type in [
+            e.value for e in ModelType
+        ]
+
+        if (
+            is_standard_type
+            and self.auth_type == AuthType.APIKey
+            and (self.api_key is None or self.api_key.strip() == "")
         ):
             raise ApiKeyMissingError(
                 self.type,
@@ -69,14 +80,22 @@ class LanguageModelConfig(BaseModel):
 
         auth_type must be api_key when using OpenAI and
         can be either api_key or azure_managed_identity when using AOI.
+        
+        Custom model types bypass strict auth validation to allow alternative methods.
 
         Raises
         ------
         ConflictingSettingsError
             If the Azure authentication type conflicts with the model being used.
         """
+        # Skip auth type validation for custom model types
+        is_standard_type = isinstance(self.type, ModelType) or self.type in [
+            e.value for e in ModelType
+        ]
+
         if (
-            self.auth_type == AuthType.AzureManagedIdentity
+            is_standard_type
+            and self.auth_type == AuthType.AzureManagedIdentity
             and self.type != ModelType.AzureOpenAIChat
             and self.type != ModelType.AzureOpenAIEmbedding
             and self.model_provider != "azure"  # indicates Litellm + AOI
