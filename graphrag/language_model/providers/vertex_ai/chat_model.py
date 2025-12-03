@@ -38,6 +38,9 @@ class VertexAIChatModel:
             vertex_location: GCP Location (overrides config)
             **kwargs: Additional arguments
         """
+        print(f"!!! VERTEX AI CHAT MODEL __INIT__ CALLED !!! name={name}, config.type={getattr(config, 'type', 'NO_TYPE')}")
+        logger.error(f"!!! VERTEX AI CHAT MODEL __INIT__ CALLED !!! name={name}")
+        
         from graphrag.language_model.providers.vertex_ai.rest_client import (
             VertexAIRestClient,
         )
@@ -126,7 +129,7 @@ class VertexAIChatModel:
             BaseModelResponse,
         )
 
-        logger.info("[CHAT_MODEL] Starting chat request")
+        logger.warning("[CHAT_MODEL] Starting chat request")
         
         # Call REST API
         config_kwargs = {
@@ -136,18 +139,18 @@ class VertexAIChatModel:
         }
         config_kwargs.update(kwargs)
         
-        logger.info(f"[CHAT_MODEL] Calling REST client with config: {config_kwargs}")
+        logger.warning(f"[CHAT_MODEL] Calling REST client with config: {config_kwargs}")
         
         try:
             response = self.rest_client.generate_content(prompt, **config_kwargs)
-            logger.info(f"[CHAT_MODEL] REST response received: {str(response)[:200]}")
+            logger.warning(f"[CHAT_MODEL] REST response received: {str(response)[:200]}")
         except Exception as e:
             logger.error(f"[CHAT_MODEL] REST client failed: {type(e).__name__}: {e!s}")
             raise
         
         # Extract text from response
         content = response.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
-        logger.info(f"[CHAT_MODEL] Extracted content length: {len(content)}")
+        logger.warning(f"[CHAT_MODEL] Extracted content length: {len(content)}")
 
         # Handle JSON parsing if requested
         parsed_response = None

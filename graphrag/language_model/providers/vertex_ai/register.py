@@ -32,6 +32,8 @@ def register_vertex_ai_providers() -> None:
     if _REGISTERED:
         return
 
+    print("!!! REGISTERING VERTEX AI PROVIDERS !!!")
+    logger.error("!!! REGISTERING VERTEX AI PROVIDERS !!!")
     logger.info("Registering Vertex AI providers with ModelFactory")
 
     # Register Chat Model

@@ -51,6 +51,8 @@ class ModelFactory:
         -------
             A ChatModel instance.
         """
+        print(f"!!! ModelFactory.create_chat_model called: model_type={model_type}, registered_types={list(cls._chat_registry.keys())}")
+        
         if model_type not in cls._chat_registry:
             msg = f"ChatMOdel implementation '{model_type}' is not registered."
             raise ValueError(msg)
