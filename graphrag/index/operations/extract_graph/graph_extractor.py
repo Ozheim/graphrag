@@ -153,8 +153,10 @@ class GraphExtractor:
             }),
         )
         
-        print(f"!!! achat returned, response content length: {len(response.output.content or '')}")
         results = response.output.content or ""
+        print(f"!!! achat returned, response content length: {len(results)}")
+        print(f"!!! First 500 chars of response: {results[:500]}")
+        print(f"!!! Last 200 chars of response: {results[-200:]}")
 
         # if gleanings are specified, enter a loop to extract more entities
         # there are two exit criteria: (a) we hit the configured max, (b) the model says there are no more entities

@@ -92,6 +92,8 @@ class VertexAIChatModel:
         Returns:
             ModelResponse object
         """
+        print(f"!!! ACHAT CALLED !!! prompt length: {len(prompt)}")
+        
         from graphrag.language_model.response.base import (
             BaseModelOutput,
             BaseModelResponse,
