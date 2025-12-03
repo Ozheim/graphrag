@@ -46,12 +46,19 @@ class VertexAIEmbeddingModel:
         # Get project and location from kwargs or config
         self.project = vertex_project or getattr(config, "vertex_project", None)
         self.location = vertex_location or getattr(config, "vertex_location", None)
+        
+        # Get api_base from config if provided (for custom endpoints)
+        self.api_endpoint = config.api_base if config.api_base else None
 
         # Initialize Vertex AI with ADC
         logger.info(
-            f"Initializing Vertex AI Embeddings for {name} with project={self.project}, location={self.location}"
+            f"Initializing Vertex AI Embeddings for {name} with project={self.project}, location={self.location}, api_endpoint={self.api_endpoint}"
         )
-        vertexai.init(project=self.project, location=self.location)
+        vertexai.init(
+            project=self.project, 
+            location=self.location,
+            api_endpoint=self.api_endpoint
+        )
 
         # Get model name from config
         model_name = config.model or "textembedding-gecko@003"

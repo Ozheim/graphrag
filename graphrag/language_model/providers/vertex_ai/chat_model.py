@@ -62,14 +62,22 @@ class VertexAIChatModel:
         # Priority: kwargs > config attributes > environment
         self.project = vertex_project or getattr(config, "vertex_project", None)
         self.location = vertex_location or getattr(config, "vertex_location", None)
+        
+        # Get api_base from config if provided (for custom endpoints)
+        self.api_endpoint = config.api_base if config.api_base else None
 
         try:
             # Initialize Vertex AI with ADC
             # If project/location are None, vertexai.init() will use environment defaults
+            # If api_endpoint is provided, use it to override the default endpoint
             logger.error(
-                f"Attempting vertexai.init() with project={self.project}, location={self.location}"
+                f"Attempting vertexai.init() with project={self.project}, location={self.location}, api_endpoint={self.api_endpoint}"
             )
-            vertexai.init(project=self.project, location=self.location)
+            vertexai.init(
+                project=self.project, 
+                location=self.location,
+                api_endpoint=self.api_endpoint
+            )
             logger.error("✅ vertexai.init() succeeded")
 
             # Extract model name from config
