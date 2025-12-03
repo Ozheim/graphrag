@@ -191,6 +191,16 @@ class LanguageModelConfig(BaseModel):
         description="The base URL for the LLM API.",
         default=language_model_defaults.api_base,
     )
+    
+    vertex_project: str | None = Field(
+        description="GCP Project ID for Vertex AI.",
+        default=None,
+    )
+    
+    vertex_location: str | None = Field(
+        description="GCP Location for Vertex AI (e.g. 'europe-west4').",
+        default=None,
+    )
 
     def _validate_api_base(self) -> None:
         """Validate the API base.
