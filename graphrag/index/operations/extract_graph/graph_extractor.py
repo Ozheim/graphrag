@@ -143,12 +143,17 @@ class GraphExtractor:
     async def _process_document(
         self, text: str, prompt_variables: dict[str, str]
     ) -> str:
+        print(f"!!! _process_document called, text length: {len(text)}")
+        print(f"!!! About to call self._model.achat(), model type: {type(self._model).__name__}")
+        
         response = await self._model.achat(
             self._extraction_prompt.format(**{
                 **prompt_variables,
                 self._input_text_key: text,
             }),
         )
+        
+        print(f"!!! achat returned, response content length: {len(response.output.content or '')}")
         results = response.output.content or ""
 
         # if gleanings are specified, enter a loop to extract more entities
