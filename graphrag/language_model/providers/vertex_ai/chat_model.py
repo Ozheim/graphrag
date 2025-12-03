@@ -101,7 +101,9 @@ class VertexAIChatModel:
 
         logger.info(f"[CHAT_MODEL] achat called with prompt length: {len(prompt)}")
         # Use sync method (REST API is sync anyway)
+        print("!!! About to call self.chat()...")
         result = self.chat(prompt, history, **kwargs)
+        print(f"!!! self.chat() returned: {type(result)}")
         logger.info(f"[CHAT_MODEL] Response content length: {len(result.output.content)}")
         return result
 
@@ -137,6 +139,8 @@ class VertexAIChatModel:
         Returns:
             ModelResponse object
         """
+        print(f"!!! CHAT() CALLED (sync) !!! prompt length: {len(prompt)}")
+        
         from graphrag.language_model.response.base import (
             BaseModelOutput,
             BaseModelResponse,
