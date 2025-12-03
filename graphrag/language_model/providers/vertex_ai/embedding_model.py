@@ -33,12 +33,9 @@ class VertexAIEmbeddingModel:
             vertex_location: GCP Location (overrides config)
             **kwargs: Additional arguments
         """
-        try:
-            import vertexai
-            from vertexai.language_models import TextEmbeddingModel
-        except ImportError as e:
-            msg = "google-cloud-aiplatform package is required for Vertex AI models. Install it with: pip install google-cloud-aiplatform"
-            raise ImportError(msg) from e
+        from graphrag.language_model.providers.vertex_ai.rest_client import (
+            VertexAIRestClient,
+        )
 
         self.name = name
         self.config = config
@@ -46,29 +43,17 @@ class VertexAIEmbeddingModel:
         # Get project and location from kwargs or config
         self.project = vertex_project or getattr(config, "vertex_project", None)
         self.location = vertex_location or getattr(config, "vertex_location", None)
-        
-        # Get api_base from config if provided (for custom endpoints)
-        self.api_endpoint = config.api_base if config.api_base else None
-        
-        # Configure proxy if provided in config
-        if config.proxy:
-            import os
-            os.environ["HTTPS_PROXY"] = config.proxy
-            os.environ["HTTP_PROXY"] = config.proxy
-            os.environ["NO_PROXY"] = "127.0.0.1,localhost"
-            os.environ["GOOGLE_API_USE_REST_CLIENT"] = "true"
-
-        # Initialize Vertex AI with ADC
-        vertexai.init(
-            project=self.project, 
-            location=self.location,
-            api_endpoint=self.api_endpoint
-        )
-
-        # Get model name from config
         model_name = config.model or "textembedding-gecko@003"
-        self.model = TextEmbeddingModel.from_pretrained(model_name)
-        logger.info(f"Vertex AI Embedding Model ready: {model_name}")
+        
+        # Use REST client for proxy compatibility
+        self.rest_client = VertexAIRestClient(
+            project=self.project,
+            location=self.location,
+            model=model_name,
+            api_endpoint=config.api_base,
+            proxy=config.proxy,
+        )
+        logger.info(f"Vertex AI Embedding Model ready (REST): {model_name}")
 
     async def aembed_batch(
         self, text_list: list[str], **kwargs: Any
@@ -102,7 +87,7 @@ class VertexAIEmbeddingModel:
 
     def embed_batch(self, text_list: list[str], **kwargs: Any) -> list[list[float]]:
         """
-        Batch embedding generation.
+        Batch embedding generation using REST API.
 
         Args:
             text_list: List of texts to embed
@@ -113,23 +98,22 @@ class VertexAIEmbeddingModel:
         """
         try:
             # Vertex AI supports batch embedding with up to 250 texts
-            # Split into batches if needed
             batch_size = 250
             all_embeddings = []
 
             for i in range(0, len(text_list), batch_size):
                 batch = text_list[i : i + batch_size]
-                embeddings = self.model.get_embeddings(batch)
-                all_embeddings.extend([emb.values for emb in embeddings])
+                embeddings = self.rest_client.get_embeddings(batch)
+                all_embeddings.extend(embeddings)
 
             return all_embeddings
-        except Exception as e:
-            logger.error(f"Error generating batch embeddings: {e}")
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"Error generating batch embeddings: {e!s}")
             raise
 
     def embed(self, text: str, **kwargs: Any) -> list[float]:
         """
-        Single text embedding.
+        Single text embedding using REST API.
 
         Args:
             text: Text to embed
@@ -139,9 +123,9 @@ class VertexAIEmbeddingModel:
             Embedding vector
         """
         try:
-            embeddings = self.model.get_embeddings([text])
-            return embeddings[0].values if embeddings else []
-        except Exception as e:
-            logger.error(f"Error generating embedding: {e}")
+            embeddings = self.rest_client.get_embeddings([text])
+            return embeddings[0] if embeddings else []
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"Error generating embedding: {e!s}")
             raise
 

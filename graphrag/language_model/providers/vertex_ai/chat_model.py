@@ -38,43 +38,28 @@ class VertexAIChatModel:
             vertex_location: GCP Location (overrides config)
             **kwargs: Additional arguments
         """
-        try:
-            import vertexai
-            from vertexai.generative_models import GenerativeModel
-        except ImportError as e:
-            msg = f"google-cloud-aiplatform package is required. Install: pip install google-cloud-aiplatform"
-            logger.error(msg)
-            raise ImportError(msg) from e
+        from graphrag.language_model.providers.vertex_ai.rest_client import (
+            VertexAIRestClient,
+        )
 
         self.name = name
         self.config = config
 
         # Get project and location from kwargs or config
-        # Priority: kwargs > config attributes > environment
         self.project = vertex_project or getattr(config, "vertex_project", None)
         self.location = vertex_location or getattr(config, "vertex_location", None)
+        model_name = config.model or "gemini-pro"
         
-        # Get api_base from config if provided (for custom endpoints)
-        self.api_endpoint = config.api_base if config.api_base else None
-        
-        # Configure proxy if provided in config
-        if config.proxy:
-            import os
-            os.environ["HTTPS_PROXY"] = config.proxy
-            os.environ["HTTP_PROXY"] = config.proxy
-            os.environ["NO_PROXY"] = "127.0.0.1,localhost"
-            os.environ["GOOGLE_API_USE_REST_CLIENT"] = "true"
-
+        # Use REST client for proxy compatibility
         try:
-            vertexai.init(
-                project=self.project, 
+            self.rest_client = VertexAIRestClient(
+                project=self.project,
                 location=self.location,
-                api_endpoint=self.api_endpoint
+                model=model_name,
+                api_endpoint=config.api_base,
+                proxy=config.proxy,
             )
-            model_name = config.model or "gemini-pro"
-            self.model = GenerativeModel(model_name)
-            logger.info(f"Vertex AI Chat Model ready: {model_name}")
-            
+            logger.info(f"Vertex AI Chat Model ready (REST): {model_name}")
         except Exception as e:
             logger.error(f"Vertex AI init failed: {type(e).__name__}: {e!s}")
             raise
@@ -83,7 +68,7 @@ class VertexAIChatModel:
         self, prompt: str, history: list | None = None, **kwargs: Any
     ) -> "ModelResponse":
         """
-        Async chat completion.
+        Async chat completion using REST API.
 
         Args:
             prompt: The prompt text
@@ -93,40 +78,13 @@ class VertexAIChatModel:
         Returns:
             ModelResponse object
         """
-        # Import here to avoid circular imports
         from graphrag.language_model.response.base import (
             BaseModelOutput,
             BaseModelResponse,
         )
 
-        # Build chat history if provided
-        chat = self.model.start_chat(history=[])
-
-        # Generate content
-        generation_config = self._build_generation_config(kwargs)
-        response = await chat.send_message_async(
-            prompt, generation_config=generation_config
-        )
-
-        content = response.text
-
-        # Handle JSON parsing if requested
-        parsed_response = None
-        if kwargs.get("json"):
-            try:
-                parsed_dict = json.loads(content)
-                if "json_model" in kwargs and isinstance(kwargs["json_model"], type):
-                    if issubclass(kwargs["json_model"], BaseModel):
-                        parsed_response = kwargs["json_model"](**parsed_dict)
-                else:
-                    parsed_response = parsed_dict  # type: ignore
-            except json.JSONDecodeError:
-                logger.warning("Failed to parse JSON response from Vertex AI")
-
-        return BaseModelResponse(
-            output=BaseModelOutput(content=content),
-            parsed_response=parsed_response,
-        )
+        # Use sync method (REST API is sync anyway)
+        return self.chat(prompt, history, **kwargs)
 
     async def achat_stream(
         self, prompt: str, history: list | None = None, **kwargs: Any
@@ -142,22 +100,15 @@ class VertexAIChatModel:
         Yields:
             Response text chunks
         """
-        chat = self.model.start_chat(history=[])
-        generation_config = self._build_generation_config(kwargs)
-
-        response = await chat.send_message_async(
-            prompt, generation_config=generation_config, stream=True
-        )
-
-        async for chunk in response:
-            if chunk.text:
-                yield chunk.text
+        # REST API doesn't support streaming, return full response
+        response = self.chat(prompt, history, **kwargs)
+        yield response.output.content
 
     def chat(
         self, prompt: str, history: list | None = None, **kwargs: Any
     ) -> "ModelResponse":
         """
-        Synchronous chat completion.
+        Synchronous chat completion using REST API.
 
         Args:
             prompt: The prompt text
@@ -172,11 +123,18 @@ class VertexAIChatModel:
             BaseModelResponse,
         )
 
-        chat = self.model.start_chat(history=[])
-        generation_config = self._build_generation_config(kwargs)
-
-        response = chat.send_message(prompt, generation_config=generation_config)
-        content = response.text
+        # Call REST API
+        config_kwargs = {
+            "temperature": self.config.temperature,
+            "max_tokens": self.config.max_tokens,
+            "top_p": self.config.top_p,
+        }
+        config_kwargs.update(kwargs)
+        
+        response = self.rest_client.generate_content(prompt, **config_kwargs)
+        
+        # Extract text from response
+        content = response.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
 
         # Handle JSON parsing if requested
         parsed_response = None
@@ -210,48 +168,7 @@ class VertexAIChatModel:
         Yields:
             Response text chunks
         """
-        chat = self.model.start_chat(history=[])
-        generation_config = self._build_generation_config(kwargs)
-
-        response = chat.send_message(
-            prompt, generation_config=generation_config, stream=True
-        )
-
-        for chunk in response:
-            if chunk.text:
-                yield chunk.text
-
-    def _build_generation_config(self, kwargs: dict[str, Any]) -> dict[str, Any]:
-        """
-        Build generation config from kwargs and model config.
-
-        Args:
-            kwargs: Keyword arguments from chat call
-
-        Returns:
-            Generation config dictionary
-        """
-        config = {}
-
-        # Map common parameters
-        if self.config.temperature is not None:
-            config["temperature"] = self.config.temperature
-        if self.config.max_tokens is not None:
-            config["max_output_tokens"] = self.config.max_tokens
-        if self.config.top_p is not None:
-            config["top_p"] = self.config.top_p
-
-        # Override with kwargs if provided
-        if "temperature" in kwargs:
-            config["temperature"] = kwargs["temperature"]
-        if "max_tokens" in kwargs:
-            config["max_output_tokens"] = kwargs["max_tokens"]
-        if "top_p" in kwargs:
-            config["top_p"] = kwargs["top_p"]
-
-        # Handle JSON mode
-        if kwargs.get("json"):
-            config["response_mime_type"] = "application/json"
-
-        return config
+        # REST API doesn't support streaming, return full response
+        response = self.chat(prompt, history, **kwargs)
+        yield response.output.content
 
