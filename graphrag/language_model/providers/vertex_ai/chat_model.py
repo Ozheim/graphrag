@@ -83,8 +83,11 @@ class VertexAIChatModel:
             BaseModelResponse,
         )
 
+        logger.info(f"[CHAT_MODEL] achat called with prompt length: {len(prompt)}")
         # Use sync method (REST API is sync anyway)
-        return self.chat(prompt, history, **kwargs)
+        result = self.chat(prompt, history, **kwargs)
+        logger.info(f"[CHAT_MODEL] Response content length: {len(result.output.content)}")
+        return result
 
     async def achat_stream(
         self, prompt: str, history: list | None = None, **kwargs: Any
@@ -123,6 +126,8 @@ class VertexAIChatModel:
             BaseModelResponse,
         )
 
+        logger.info("[CHAT_MODEL] Starting chat request")
+        
         # Call REST API
         config_kwargs = {
             "temperature": self.config.temperature,
@@ -131,10 +136,18 @@ class VertexAIChatModel:
         }
         config_kwargs.update(kwargs)
         
-        response = self.rest_client.generate_content(prompt, **config_kwargs)
+        logger.info(f"[CHAT_MODEL] Calling REST client with config: {config_kwargs}")
+        
+        try:
+            response = self.rest_client.generate_content(prompt, **config_kwargs)
+            logger.info(f"[CHAT_MODEL] REST response received: {str(response)[:200]}")
+        except Exception as e:
+            logger.error(f"[CHAT_MODEL] REST client failed: {type(e).__name__}: {e!s}")
+            raise
         
         # Extract text from response
         content = response.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+        logger.info(f"[CHAT_MODEL] Extracted content length: {len(content)}")
 
         # Handle JSON parsing if requested
         parsed_response = None

@@ -83,7 +83,10 @@ class VertexAIEmbeddingModel:
         Returns:
             Embedding vector
         """
-        return self.embed(text, **kwargs)
+        logger.info(f"[EMBED_MODEL] aembed called with text length: {len(text)}")
+        result = self.embed(text, **kwargs)
+        logger.info(f"[EMBED_MODEL] Embedding dimension: {len(result)}")
+        return result
 
     def embed_batch(self, text_list: list[str], **kwargs: Any) -> list[list[float]]:
         """
@@ -122,10 +125,12 @@ class VertexAIEmbeddingModel:
         Returns:
             Embedding vector
         """
+        logger.info("[EMBED_MODEL] Starting embed request")
         try:
             embeddings = self.rest_client.get_embeddings([text])
+            logger.info(f"[EMBED_MODEL] Embedding received, dimension: {len(embeddings[0]) if embeddings else 0}")
             return embeddings[0] if embeddings else []
         except Exception as e:  # noqa: BLE001
-            logger.error(f"Error generating embedding: {e!s}")
+            logger.error(f"[EMBED_MODEL] Error generating embedding: {e!s}")
             raise
 

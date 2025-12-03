@@ -68,11 +68,11 @@ class VertexAIRestClient:
         """
         try:
             url = f"{self.base_url}/v1/projects/{self.project}/locations/{self.location}/publishers/google/models/{self.model}:generateContent"
-            logger.info(f"REST API URL: {url}")
+            logger.info(f"[REST_CLIENT] REST API URL: {url}")
             
-            logger.info("Getting access token...")
+            logger.info("[REST_CLIENT] Getting access token...")
             token = self._get_access_token()
-            logger.info(f"Token obtained: {token[:20]}...")
+            logger.info(f"[REST_CLIENT] Token obtained: {token[:20]}...")
             
             headers = {
                 "Authorization": f"Bearer {token}",
@@ -97,28 +97,31 @@ class VertexAIRestClient:
             if kwargs.get("json"):
                 body["generationConfig"]["responseMimeType"] = "application/json"
             
-            logger.info(f"Making POST request (proxy: {self.proxy})...")
-            logger.info(f"Request body: {json.dumps(body, indent=2)[:500]}")
+            logger.info(f"[REST_CLIENT] Making POST request (proxy: {self.proxy})...")
+            logger.info(f"[REST_CLIENT] Prompt length: {len(prompt)} chars")
             
             # Make request
             response = self.session.post(url, headers=headers, json=body, timeout=180)
             
-            logger.info(f"Response status: {response.status_code}")
+            logger.info(f"[REST_CLIENT] Response status: {response.status_code}")
             
             if response.status_code != 200:
-                logger.error(f"HTTP Error {response.status_code}: {response.text[:500]}")
+                logger.error(f"[REST_CLIENT] HTTP Error {response.status_code}: {response.text[:500]}")
             
             response.raise_for_status()
             result = response.json()
-            logger.info("Response received successfully")
+            logger.info(f"[REST_CLIENT] Response JSON structure: {list(result.keys())}")
+            if "candidates" in result:
+                logger.info(f"[REST_CLIENT] Number of candidates: {len(result['candidates'])}")
+            logger.info("[REST_CLIENT] Response received successfully")
             
             return result
             
         except requests.exceptions.RequestException as e:
-            logger.error(f"HTTP Request failed: {type(e).__name__}: {e!s}")
+            logger.error(f"[REST_CLIENT] HTTP Request failed: {type(e).__name__}: {e!s}")
             raise
         except Exception as e:  # noqa: BLE001
-            logger.error(f"Unexpected error in generate_content: {type(e).__name__}: {e!s}")
+            logger.error(f"[REST_CLIENT] Unexpected error in generate_content: {type(e).__name__}: {e!s}")
             raise
 
     def get_embeddings(self, texts: list[str]) -> list[list[float]]:
@@ -131,7 +134,10 @@ class VertexAIRestClient:
         Returns:
             List of embedding vectors
         """
+        logger.info(f"[REST_CLIENT] get_embeddings called with {len(texts)} texts")
+        
         url = f"{self.base_url}/v1/projects/{self.project}/locations/{self.location}/publishers/google/models/{self.model}:predict"
+        logger.info(f"[REST_CLIENT] Embedding URL: {url}")
         
         headers = {
             "Authorization": f"Bearer {self._get_access_token()}",
@@ -140,9 +146,14 @@ class VertexAIRestClient:
         
         body = {"instances": [{"content": text} for text in texts]}
         
+        logger.info("[REST_CLIENT] Sending embedding request...")
         response = self.session.post(url, headers=headers, json=body, timeout=180)
+        logger.info(f"[REST_CLIENT] Embedding response status: {response.status_code}")
+        
         response.raise_for_status()
         
         result = response.json()
-        return [pred["embeddings"]["values"] for pred in result.get("predictions", [])]
+        embeddings = [pred["embeddings"]["values"] for pred in result.get("predictions", [])]
+        logger.info(f"[REST_CLIENT] Received {len(embeddings)} embeddings")
+        return embeddings
 
