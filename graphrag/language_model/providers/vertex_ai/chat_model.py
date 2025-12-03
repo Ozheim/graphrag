@@ -74,6 +74,11 @@ class VertexAIChatModel:
             os.environ["HTTP_PROXY"] = config.proxy
             # Don't proxy localhost/internal services
             os.environ["NO_PROXY"] = "127.0.0.1,localhost"
+            
+            # CRITICAL: Force REST instead of gRPC when using proxy
+            # gRPC/HTTP2 doesn't work well with most corporate proxies
+            os.environ["GOOGLE_API_USE_REST_CLIENT"] = "true"
+            logger.error("⚙️ Forcing REST client (not gRPC) for proxy compatibility")
 
         try:
             # Initialize Vertex AI with ADC
