@@ -66,36 +66,60 @@ class VertexAIRestClient:
         Returns:
             Response dict from Vertex AI
         """
-        url = f"{self.base_url}/v1/projects/{self.project}/locations/{self.location}/publishers/google/models/{self.model}:generateContent"
-        
-        headers = {
-            "Authorization": f"Bearer {self._get_access_token()}",
-            "Content-Type": "application/json",
-        }
-        
-        # Build request body
-        body = {
-            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-            "generationConfig": {},
-        }
-        
-        # Map GraphRAG parameters to Vertex AI
-        if "temperature" in kwargs:
-            body["generationConfig"]["temperature"] = kwargs["temperature"]
-        if "max_tokens" in kwargs:
-            body["generationConfig"]["maxOutputTokens"] = kwargs["max_tokens"]
-        if "top_p" in kwargs:
-            body["generationConfig"]["topP"] = kwargs["top_p"]
-        
-        # Handle JSON mode
-        if kwargs.get("json"):
-            body["generationConfig"]["responseMimeType"] = "application/json"
-        
-        # Make request
-        response = self.session.post(url, headers=headers, json=body, timeout=180)
-        response.raise_for_status()
-        
-        return response.json()
+        try:
+            url = f"{self.base_url}/v1/projects/{self.project}/locations/{self.location}/publishers/google/models/{self.model}:generateContent"
+            logger.info(f"REST API URL: {url}")
+            
+            logger.info("Getting access token...")
+            token = self._get_access_token()
+            logger.info(f"Token obtained: {token[:20]}...")
+            
+            headers = {
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            }
+            
+            # Build request body
+            body = {
+                "contents": [{"role": "user", "parts": [{"text": prompt[:100]}]}],
+                "generationConfig": {},
+            }
+            
+            # Map GraphRAG parameters to Vertex AI
+            if "temperature" in kwargs:
+                body["generationConfig"]["temperature"] = kwargs["temperature"]
+            if "max_tokens" in kwargs:
+                body["generationConfig"]["maxOutputTokens"] = kwargs["max_tokens"]
+            if "top_p" in kwargs:
+                body["generationConfig"]["topP"] = kwargs["top_p"]
+            
+            # Handle JSON mode
+            if kwargs.get("json"):
+                body["generationConfig"]["responseMimeType"] = "application/json"
+            
+            logger.info(f"Making POST request (proxy: {self.proxy})...")
+            logger.info(f"Request body: {json.dumps(body, indent=2)[:500]}")
+            
+            # Make request
+            response = self.session.post(url, headers=headers, json=body, timeout=180)
+            
+            logger.info(f"Response status: {response.status_code}")
+            
+            if response.status_code != 200:
+                logger.error(f"HTTP Error {response.status_code}: {response.text[:500]}")
+            
+            response.raise_for_status()
+            result = response.json()
+            logger.info("Response received successfully")
+            
+            return result
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"HTTP Request failed: {type(e).__name__}: {e!s}")
+            raise
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"Unexpected error in generate_content: {type(e).__name__}: {e!s}")
+            raise
 
     def get_embeddings(self, texts: list[str]) -> list[list[float]]:
         """
