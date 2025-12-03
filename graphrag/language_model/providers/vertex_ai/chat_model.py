@@ -38,11 +38,21 @@ class VertexAIChatModel:
             vertex_location: GCP Location (overrides config)
             **kwargs: Additional arguments
         """
+        logger.error("=" * 80)
+        logger.error("VERTEX AI CHAT MODEL INITIALIZATION STARTING")
+        logger.error(f"Name: {name}")
+        logger.error(f"Model: {config.model}")
+        logger.error(f"Project: {vertex_project}")
+        logger.error(f"Location: {vertex_location}")
+        logger.error("=" * 80)
+        
         try:
             import vertexai
             from vertexai.generative_models import GenerativeModel
+            logger.error("✅ Successfully imported vertexai modules")
         except ImportError as e:
-            msg = "google-cloud-aiplatform package is required for Vertex AI models. Install it with: pip install google-cloud-aiplatform"
+            msg = f"❌ CRITICAL: google-cloud-aiplatform package is required for Vertex AI models. Install it with: pip install google-cloud-aiplatform. Error: {e}"
+            logger.error(msg)
             raise ImportError(msg) from e
 
         self.name = name
@@ -53,18 +63,33 @@ class VertexAIChatModel:
         self.project = vertex_project or getattr(config, "vertex_project", None)
         self.location = vertex_location or getattr(config, "vertex_location", None)
 
-        # Initialize Vertex AI with ADC
-        # If project/location are None, vertexai.init() will use environment defaults
-        logger.info(
-            f"Initializing Vertex AI for model {name} with project={self.project}, location={self.location}"
-        )
-        vertexai.init(project=self.project, location=self.location)
+        try:
+            # Initialize Vertex AI with ADC
+            # If project/location are None, vertexai.init() will use environment defaults
+            logger.error(
+                f"Attempting vertexai.init() with project={self.project}, location={self.location}"
+            )
+            vertexai.init(project=self.project, location=self.location)
+            logger.error("✅ vertexai.init() succeeded")
 
-        # Extract model name from config
-        model_name = config.model or "gemini-pro"
-        self.model = GenerativeModel(model_name)
-
-        logger.info(f"Vertex AI Chat Model initialized: {model_name}")
+            # Extract model name from config
+            model_name = config.model or "gemini-pro"
+            logger.error(f"Loading model: {model_name}")
+            self.model = GenerativeModel(model_name)
+            logger.error(f"✅ Vertex AI Chat Model initialized successfully: {model_name}")
+            
+        except Exception as e:
+            logger.error("=" * 80)
+            logger.error(f"❌ VERTEX AI INITIALIZATION FAILED")
+            logger.error(f"Error Type: {type(e).__name__}")
+            logger.error(f"Error Message: {e!s}")
+            logger.error(f"Project: {self.project}")
+            logger.error(f"Location: {self.location}")
+            logger.error(f"Model: {config.model}")
+            logger.error("=" * 80)
+            import traceback
+            logger.error(traceback.format_exc())
+            raise
 
     async def achat(
         self, prompt: str, history: list | None = None, **kwargs: Any
