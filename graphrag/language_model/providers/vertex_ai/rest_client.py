@@ -94,7 +94,7 @@ class VertexAIRestClient:
             
             # Build request body
             body = {
-                "contents": [{"role": "user", "parts": [{"text": prompt[:100]}]}],
+                "contents": [{"role": "user", "parts": [{"text": prompt}]}],
                 "generationConfig": {},
             }
             
@@ -110,13 +110,14 @@ class VertexAIRestClient:
             if kwargs.get("json"):
                 body["generationConfig"]["responseMimeType"] = "application/json"
             
-            logger.info(f"[REST_CLIENT] Making POST request (proxy: {self.proxy})...")
-            logger.info(f"[REST_CLIENT] Prompt length: {len(prompt)} chars")
+            print(f"!!! REST_CLIENT: Making POST request (proxy: {self.proxy})")
+            print(f"!!! REST_CLIENT: Prompt length: {len(prompt)} chars")
+            print(f"!!! REST_CLIENT: Body structure: {list(body.keys())}")
             
             # Make request
             response = self.session.post(url, headers=headers, json=body, timeout=180)
             
-            logger.info(f"[REST_CLIENT] Response status: {response.status_code}")
+            print(f"!!! REST_CLIENT: Response status: {response.status_code}")
             
             if response.status_code != 200:
                 logger.error(f"[REST_CLIENT] HTTP Error {response.status_code}: {response.text[:500]}")

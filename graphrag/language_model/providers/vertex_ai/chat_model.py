@@ -146,7 +146,7 @@ class VertexAIChatModel:
             BaseModelResponse,
         )
 
-        logger.warning("[CHAT_MODEL] Starting chat request")
+        print(f"!!! CHAT: About to call REST client, prompt length: {len(prompt)}")
         
         # Call REST API
         config_kwargs = {
@@ -156,10 +156,12 @@ class VertexAIChatModel:
         }
         config_kwargs.update(kwargs)
         
-        logger.warning(f"[CHAT_MODEL] Calling REST client with config: {config_kwargs}")
+        print(f"!!! CHAT: Config kwargs: {config_kwargs}")
         
         try:
+            print("!!! CHAT: Calling self.rest_client.generate_content()...")
             response = self.rest_client.generate_content(prompt, **config_kwargs)
+            print(f"!!! CHAT: REST client returned, response keys: {list(response.keys())}")
             logger.warning(f"[CHAT_MODEL] REST response received: {str(response)[:200]}")
         except Exception as e:
             logger.error(f"[CHAT_MODEL] REST client failed: {type(e).__name__}: {e!s}")
