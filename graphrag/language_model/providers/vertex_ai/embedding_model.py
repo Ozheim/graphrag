@@ -53,21 +53,12 @@ class VertexAIEmbeddingModel:
         # Configure proxy if provided in config
         if config.proxy:
             import os
-            logger.info(f"⚙️ Configuring proxy: {config.proxy}")
             os.environ["HTTPS_PROXY"] = config.proxy
             os.environ["HTTP_PROXY"] = config.proxy
-            # Don't proxy localhost/internal services
             os.environ["NO_PROXY"] = "127.0.0.1,localhost"
-            
-            # CRITICAL: Force REST instead of gRPC when using proxy
-            # gRPC/HTTP2 doesn't work well with most corporate proxies
             os.environ["GOOGLE_API_USE_REST_CLIENT"] = "true"
-            logger.info("⚙️ Forcing REST client (not gRPC) for proxy compatibility")
 
         # Initialize Vertex AI with ADC
-        logger.info(
-            f"Initializing Vertex AI Embeddings for {name} with project={self.project}, location={self.location}, api_endpoint={self.api_endpoint}"
-        )
         vertexai.init(
             project=self.project, 
             location=self.location,
@@ -77,8 +68,7 @@ class VertexAIEmbeddingModel:
         # Get model name from config
         model_name = config.model or "textembedding-gecko@003"
         self.model = TextEmbeddingModel.from_pretrained(model_name)
-
-        logger.info(f"Vertex AI Embedding Model initialized: {model_name}")
+        logger.info(f"Vertex AI Embedding Model ready: {model_name}")
 
     async def aembed_batch(
         self, text_list: list[str], **kwargs: Any
