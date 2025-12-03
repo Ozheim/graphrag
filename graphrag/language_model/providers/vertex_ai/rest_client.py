@@ -26,6 +26,8 @@ class VertexAIRestClient:
         proxy: str | None = None,
     ):
         """Initialize Vertex AI REST client."""
+        print(f"!!! VertexAIRestClient __init__: project={project}, location={location}, model={model}")
+        
         self.project = project
         self.location = location
         self.model = model
@@ -37,10 +39,19 @@ class VertexAIRestClient:
         else:
             self.base_url = f"https://{location}-aiplatform.googleapis.com"
         
+        print(f"!!! VertexAIRestClient: base_url={self.base_url}")
+        
         # Get credentials for authentication
-        self.credentials, _ = default()
+        print("!!! VertexAIRestClient: Calling google.auth.default()...")
+        try:
+            self.credentials, _ = default()
+            print(f"!!! VertexAIRestClient: Credentials obtained successfully")
+        except Exception as e:
+            print(f"!!! VertexAIRestClient: google.auth.default() FAILED: {type(e).__name__}: {e!s}")
+            raise
         
         # Configure session with proxy
+        print("!!! VertexAIRestClient: Configuring session with proxy...")
         self.session = requests.Session()
         if self.proxy:
             self.session.proxies = {
@@ -48,6 +59,8 @@ class VertexAIRestClient:
                 "https": self.proxy,
             }
             logger.info(f"REST client configured with proxy: {self.proxy}")
+        
+        print("!!! VertexAIRestClient: Initialization complete")
 
     def _get_access_token(self) -> str:
         """Get fresh access token."""

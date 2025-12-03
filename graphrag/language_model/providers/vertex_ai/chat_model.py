@@ -41,19 +41,26 @@ class VertexAIChatModel:
         print(f"!!! VERTEX AI CHAT MODEL __INIT__ CALLED !!! name={name}, config.type={getattr(config, 'type', 'NO_TYPE')}")
         logger.error(f"!!! VERTEX AI CHAT MODEL __INIT__ CALLED !!! name={name}")
         
+        print("!!! Step 1: Importing VertexAIRestClient...")
         from graphrag.language_model.providers.vertex_ai.rest_client import (
             VertexAIRestClient,
         )
+        print("!!! Step 1: OK")
 
+        print("!!! Step 2: Setting name and config...")
         self.name = name
         self.config = config
+        print("!!! Step 2: OK")
 
         # Get project and location from kwargs or config
+        print("!!! Step 3: Getting project and location...")
         self.project = vertex_project or getattr(config, "vertex_project", None)
         self.location = vertex_location or getattr(config, "vertex_location", None)
         model_name = config.model or "gemini-pro"
+        print(f"!!! Step 3: OK - project={self.project}, location={self.location}, model={model_name}")
         
         # Use REST client for proxy compatibility
+        print("!!! Step 4: Creating REST client...")
         try:
             self.rest_client = VertexAIRestClient(
                 project=self.project,
@@ -62,10 +69,14 @@ class VertexAIChatModel:
                 api_endpoint=config.api_base,
                 proxy=config.proxy,
             )
+            print(f"!!! Step 4: REST client created successfully")
             logger.info(f"Vertex AI Chat Model ready (REST): {model_name}")
         except Exception as e:
+            print(f"!!! Step 4: FAILED - {type(e).__name__}: {e!s}")
             logger.error(f"Vertex AI init failed: {type(e).__name__}: {e!s}")
             raise
+        
+        print("!!! __INIT__ COMPLETED SUCCESSFULLY")
 
     async def achat(
         self, prompt: str, history: list | None = None, **kwargs: Any
