@@ -65,6 +65,15 @@ class VertexAIChatModel:
         
         # Get api_base from config if provided (for custom endpoints)
         self.api_endpoint = config.api_base if config.api_base else None
+        
+        # Configure proxy if provided in config
+        if config.proxy:
+            import os
+            logger.error(f"⚙️ Configuring proxy: {config.proxy}")
+            os.environ["HTTPS_PROXY"] = config.proxy
+            os.environ["HTTP_PROXY"] = config.proxy
+            # Don't proxy localhost/internal services
+            os.environ["NO_PROXY"] = "127.0.0.1,localhost"
 
         try:
             # Initialize Vertex AI with ADC
