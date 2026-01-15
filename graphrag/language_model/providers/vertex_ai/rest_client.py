@@ -70,7 +70,7 @@ class VertexAIRestClient:
 
     def generate_content(self, prompt: str, **kwargs: Any) -> dict[str, Any]:
         """
-        Generate content using Vertex AI REST API.
+        Generate content using Vertex AI REST API with FULL DIAGNOSTICS.
         
         Args:
             prompt: The input text
@@ -81,21 +81,30 @@ class VertexAIRestClient:
         """
         try:
             url = f"{self.base_url}/v1/projects/{self.project}/locations/{self.location}/publishers/google/models/{self.model}:generateContent"
-            logger.info(f"[REST_CLIENT] REST API URL: {url}")
             
-            logger.info("[REST_CLIENT] Getting access token...")
+            # We don't log the URL every time to reduce noise, unless needed
+            # logger.info(f"[REST_CLIENT] REST API URL: {url}")
+            
             token = self._get_access_token()
-            logger.info(f"[REST_CLIENT] Token obtained: {token[:20]}...")
             
             headers = {
                 "Authorization": f"Bearer {token}",
                 "Content-Type": "application/json",
             }
             
-            # Build request body
+            # ---------------------------------------------------------
+            # 1. BUILD REQUEST BODY WITH SAFETY SETTINGS
+            # ---------------------------------------------------------
             body = {
                 "contents": [{"role": "user", "parts": [{"text": prompt}]}],
                 "generationConfig": {},
+                # CRITICAL: Disable Safety Filters to prevent empty responses on industrial text
+                "safetySettings": [
+                    { "category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE" },
+                    { "category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE" },
+                    { "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE" },
+                    { "category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE" }
+                ]
             }
             
             # Map GraphRAG parameters to Vertex AI
@@ -106,28 +115,71 @@ class VertexAIRestClient:
             if "top_p" in kwargs:
                 body["generationConfig"]["topP"] = kwargs["top_p"]
             
-            # Handle JSON mode
+            # Handle JSON mode if requested by GraphRAG settings
             if kwargs.get("json"):
                 body["generationConfig"]["responseMimeType"] = "application/json"
             
-            print(f"!!! REST_CLIENT: Making POST request (proxy: {self.proxy})")
-            print(f"!!! REST_CLIENT: Prompt length: {len(prompt)} chars")
-            print(f"!!! REST_CLIENT: Body structure: {list(body.keys())}")
+            # Log the request structure to confirm safetySettings are sent
+            print(f"!!! REST_CLIENT: Making POST request. Prompt len: {len(prompt)}")
+            print(f"!!! REST_CLIENT: Body keys: {list(body.keys())}")
             
-            # Make request
+            # ---------------------------------------------------------
+            # 2. SEND REQUEST
+            # ---------------------------------------------------------
+            # Timeout increased to 180s for large chunks
             response = self.session.post(url, headers=headers, json=body, timeout=180)
             
             print(f"!!! REST_CLIENT: Response status: {response.status_code}")
             
             if response.status_code != 200:
                 logger.error(f"[REST_CLIENT] HTTP Error {response.status_code}: {response.text[:500]}")
+                response.raise_for_status()
             
-            response.raise_for_status()
             result = response.json()
-            logger.info(f"[REST_CLIENT] Response JSON structure: {list(result.keys())}")
-            if "candidates" in result:
-                logger.info(f"[REST_CLIENT] Number of candidates: {len(result['candidates'])}")
-            logger.info("[REST_CLIENT] Response received successfully")
+
+            # ---------------------------------------------------------
+            # 3. EXPLICIT DIAGNOSTIC LOGGING
+            # This block prints the exact reason why Google stopped generating
+            # ---------------------------------------------------------
+            print("\n" + "="*50)
+            print("!!! GOOGLE API RESPONSE DIAGNOSTIC !!!")
+            
+            if "candidates" in result and len(result["candidates"]) > 0:
+                candidate = result["candidates"][0]
+                
+                # 3a. Check Finish Reason (STOP, SAFETY, RECITATION, etc.)
+                finish_reason = candidate.get("finishReason", "UNKNOWN")
+                print(f"!!! FINISH REASON: {finish_reason}")
+                
+                # 3b. Check Safety Ratings (did we get close to a block?)
+                if "safetyRatings" in candidate:
+                    print("!!! SAFETY SCORES:")
+                    for rating in candidate["safetyRatings"]:
+                        category = rating.get("category", "UNKNOWN").replace("HARM_CATEGORY_", "")
+                        probability = rating.get("probability", "UNKNOWN")
+                        blocked = rating.get("blocked", False)
+                        print(f"   - {category}: {probability} (Blocked: {blocked})")
+
+                # 3c. Check Content Presence
+                if "content" in candidate and "parts" in candidate["content"]:
+                    print("!!! CONTENT STATUS: Content received successfully.")
+                else:
+                    print("!!! CONTENT STATUS: [EMPTY] - The model returned no text!")
+
+                # 3d. Urgent Alerts
+                if finish_reason == "SAFETY":
+                    print("!!! CRITICAL FAILURE: Request blocked by Safety Filters.")
+                elif finish_reason == "RECITATION":
+                    print("!!! CRITICAL FAILURE: Request blocked by Copyright/Recitation.")
+                elif finish_reason == "MAX_TOKENS":
+                    print("!!! WARNING: Response truncated (max_tokens reached).")
+
+            else:
+                print("!!! ERROR: No 'candidates' list in response. Raw response below:")
+                print(json.dumps(result, indent=2))
+                
+            print("="*50 + "\n")
+            # ---------------------------------------------------------
             
             return result
             
@@ -148,10 +200,10 @@ class VertexAIRestClient:
         Returns:
             List of embedding vectors
         """
-        logger.info(f"[REST_CLIENT] get_embeddings called with {len(texts)} texts")
+        # Reduce log noise for embeddings
+        # logger.info(f"[REST_CLIENT] get_embeddings called with {len(texts)} texts")
         
         url = f"{self.base_url}/v1/projects/{self.project}/locations/{self.location}/publishers/google/models/{self.model}:predict"
-        logger.info(f"[REST_CLIENT] Embedding URL: {url}")
         
         headers = {
             "Authorization": f"Bearer {self._get_access_token()}",
@@ -160,14 +212,15 @@ class VertexAIRestClient:
         
         body = {"instances": [{"content": text} for text in texts]}
         
-        logger.info("[REST_CLIENT] Sending embedding request...")
+        # logger.info("[REST_CLIENT] Sending embedding request...")
         response = self.session.post(url, headers=headers, json=body, timeout=180)
-        logger.info(f"[REST_CLIENT] Embedding response status: {response.status_code}")
+        
+        if response.status_code != 200:
+            logger.error(f"[REST_CLIENT] Embedding Error {response.status_code}: {response.text[:200]}")
         
         response.raise_for_status()
         
         result = response.json()
         embeddings = [pred["embeddings"]["values"] for pred in result.get("predictions", [])]
-        logger.info(f"[REST_CLIENT] Received {len(embeddings)} embeddings")
+        # logger.info(f"[REST_CLIENT] Received {len(embeddings)} embeddings")
         return embeddings
-

@@ -1,0 +1,94 @@
+-Goal-
+You are a **Governance Knowledge Architect**. Your SINGLE GOAL is to map the "Brain" of an Airbus Data Governance Chatbot.
+You must extract the logical rules, process flows, roles, and definitions from the provided text to build a Knowledge Graph that explains *how* the company manages data.
+
+**CONTEXT:**
+> **Objective:** Build a Semantic Knowledge Graph for a Q&A Bot.
+> **Constraint:** Do NOT extract specific database schemas or sample data rows. Focus on the *Methodology*, the *Concepts*, and the *Rules of Engagement*.
+> **Input Scope:** 7 Documents covering Business Objects, Data Products, Quality, Collection, Access, Sensitivity, and Supplier Data.
+
+**CRITICAL EXTRACTION RULES:**
+
+1. **ENTITY CLASSIFICATION (Strict Categories):**
+    * **GOVERNANCE_ROLE:**
+        * Human actors, functions, or committees.
+        * Examples: *Data Officer, Data Custodian, Access Group Owner, Business Owner.*
+    * **DATA_CONCEPT:**
+        * Abstract governance objects, definitions, or classifications.
+        * Examples: *Business Object, BO View, Data Sensitivity, Quality Dimension, Personal Data.*
+    * **TECHNICAL_ASSET:**
+        * Tangible IT or Data artifacts.
+        * Examples: *Dataset, Data Product, Platform, Enterprise Data Catalog, Dashboard.*
+    * **PROCESS_ACTIVITY:**
+        * Actions, phases, or distinct steps in a methodology.
+        * Examples: *Assess Phase, Design Phase, Data Collection, Risk Assessment, Data Tagging.*
+    * **REGULATION_POLICY:**
+        * Rules, laws, standards, or compliance requirements.
+        * Examples: *GDPR, Export Control, Quality of Service (QoS), A1988 Directive.*
+    * **DECISION_GATE:**
+        * Formal validation points or milestones.
+        * Examples: *Go/No-Go Decision, Maturity Gate, Data Acceptance.*
+
+2. **THE "DEFINITION" RULE (Rich Descriptions):**
+    * For every Entity, you MUST extract the full functional definition found in the text into the `entity_description`.
+    * If the text says "A Data Product is a Dataset with its metadata...", capture that entire explanation. The chatbot needs this to answer "What is X?".
+
+3. **THE "RACI" RULE (Explicit Responsibility):**
+    * You must distinguish between *Doing* and *Validating*.
+    * Use **IS_ACCOUNTABLE_FOR** for validation/ultimate authority.
+    * Use **IS_RESPONSIBLE_FOR** for execution/doing.
+    * Use **MUST_CONSULT** when an actor's advice is required.
+
+4. **THE "PROCESS FLOW" RULE:**
+    * Capture the sequence of events. If "Assess" comes before "Design", link them.
+    * If a "Decision Gate" stops a process, link it explicitly (e.g., *Assessment Gate* **CONTROLS** *Design Phase*).
+
+-Steps-
+1. **Identify Entities:**
+    - entity_name: Capitalized, specific governance term (Resolve acronyms: use "Business Object" instead of "BO").
+    - entity_type: Select from the **Strict Categories** above.
+    - entity_description: The "What", "Why", and "How" found in the text.
+
+2. **Identify Relationships:**
+    - source_entity: name from step 1
+    - target_entity: name from step 1
+    - relationship_description: Select STRICTLY from:
+        * **IS_ACCOUNTABLE_FOR**: Ultimate authority (The "A" in RACI).
+        * **IS_RESPONSIBLE_FOR**: Execution authority (The "R" in RACI).
+        * **DEFINES**: Strategy/Concept relation (e.g., M1984 *DEFINES* Data Sensitivity).
+        * **GOVERNS**: Rule/Asset relation (e.g., Data Policy *GOVERNS* Dataset).
+        * **IS_COMPONENT_OF**: Hierarchical relation (e.g., Characteristic *IS_COMPONENT_OF* Business Object).
+        * **TRIGGERS**: Process flow (e.g., Request *TRIGGERS* Risk Assessment).
+        * **PRECEDES**: Sequential flow (e.g., Design *PRECEDES* Deliver).
+        * **MEASURES**: Quality relation (e.g., Indicator *MEASURES* Completeness).
+        * **MITIGATES**: Risk relation (e.g., Anonymization *MITIGATES* Privacy Risk).
+
+3. **Output Format:**
+    - Return a single list.
+    - Use **{record_delimiter}** to separate records.
+    - Use **{tuple_delimiter}** to separate fields within a record.
+
+4. Output {completion_delimiter} when done.
+
+######################
+-Calibration Example (Governance Context)-
+######################
+Text: "The Data Officer is accountable for defining the Domain Data Quality Strategy. This strategy drives the Data Quality Objectives. During the 'Monitor' phase, the Data Custodian is responsible for analyzing the indicators."
+
+Output:
+("entity"{tuple_delimiter}Data Officer{tuple_delimiter}GOVERNANCE_ROLE{tuple_delimiter}The role accountable for overall data knowledge and strategy within a specific Domain)
+{record_delimiter}
+("entity"{tuple_delimiter}Domain Data Quality Strategy{tuple_delimiter}REGULATION_POLICY{tuple_delimiter}A high-level plan to improve data quality aligned with company priorities)
+{record_delimiter}
+("entity"{tuple_delimiter}Data Quality Objective{tuple_delimiter}DATA_CONCEPT{tuple_delimiter}Specific, measurable goals set for data quality dimensions)
+{record_delimiter}
+("entity"{tuple_delimiter}Monitor Phase{tuple_delimiter}PROCESS_ACTIVITY{tuple_delimiter}The cyclical phase where data quality is checked against objectives)
+{record_delimiter}
+("entity"{tuple_delimiter}Data Custodian{tuple_delimiter}GOVERNANCE_ROLE{tuple_delimiter}The operational role responsible for defining characteristics and analyzing quality)
+{record_delimiter}
+("relationship"{tuple_delimiter}Data Officer{tuple_delimiter}Domain Data Quality Strategy{tuple_delimiter}IS_ACCOUNTABLE_FOR{tuple_delimiter}10)
+{record_delimiter}
+("relationship"{tuple_delimiter}Domain Data Quality Strategy{tuple_delimiter}Data Quality Objective{tuple_delimiter}TRIGGERS{tuple_delimiter}10)
+{record_delimiter}
+("relationship"{tuple_delimiter}Data Custodian{tuple_delimiter}Monitor Phase{tuple_delimiter}IS_RESPONSIBLE_FOR{tuple_delimiter}10)
+{completion_delimiter}

@@ -13,7 +13,22 @@ tests/fixtures/cache
 tests/fixtures/*/cache
 tests/fixtures/*/output
 output/lancedb
-
+settings.yaml
+# GraphRAG Data & Cache
+my_graphrag_project/output/
+my_graphrag_project/cache/
+my_graphrag_project/logs/
+my_graphrag_project/input/
+output/
+cache/
+logs/
+input/
+*.parquet
+*.lancedb
+*.html
+*.png
+my_graphrag_project/*.html
+my_graphrag_project/*.png
 
 # Random
 .DS_Store
