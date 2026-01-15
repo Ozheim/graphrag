@@ -152,10 +152,12 @@ class VertexAIChatModel:
     
         
         try:
-           
+            print(f"!!! CHAT: About to call REST client, prompt length: {len(prompt)}")
             response = self.rest_client.generate_content(prompt, **config_kwargs)
+            print(f"!!! CHAT: REST client returned, response keys: {list(response.keys())}")
             # logger.warning(f"[CHAT_MODEL] REST response received: {str(response)[:200]}")
         except Exception as e:
+            print(f"!!! CHAT: ERROR - {type(e).__name__}: {str(e)}")
             logger.error(f"[CHAT_MODEL] REST client failed: {type(e).__name__}: {e!s}")
             raise
         

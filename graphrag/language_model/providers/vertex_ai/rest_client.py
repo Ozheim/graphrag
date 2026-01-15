@@ -121,7 +121,7 @@ class VertexAIRestClient:
                 body["generationConfig"]["responseMimeType"] = "application/json"
             
             # Log the request structure to confirm safetySettings are sent
-            # print(f"!!! REST_CLIENT: Making POST request. Prompt len: {len(prompt)}")
+            print(f"!!! REST_CLIENT: Making POST request. Prompt len: {len(prompt)}")
             # print(f"!!! REST_CLIENT: Body keys: {list(body.keys())}")
             
             # ---------------------------------------------------------
@@ -130,7 +130,7 @@ class VertexAIRestClient:
             # Timeout increased to 180s for large chunks
             response = self.session.post(url, headers=headers, json=body, timeout=180)
             
-            # print(f"!!! REST_CLIENT: Response status: {response.status_code}")
+            print(f"!!! REST_CLIENT: Response status: {response.status_code}")
             
             if response.status_code != 200:
                 logger.error(f"[REST_CLIENT] HTTP Error {response.status_code}: {response.text[:500]}")
@@ -184,9 +184,11 @@ class VertexAIRestClient:
             return result
             
         except requests.exceptions.RequestException as e:
+            print(f"!!! REST_CLIENT: HTTP Request FAILED: {type(e).__name__}: {str(e)}")
             logger.error(f"[REST_CLIENT] HTTP Request failed: {type(e).__name__}: {e!s}")
             raise
         except Exception as e:  # noqa: BLE001
+            print(f"!!! REST_CLIENT: Unexpected ERROR: {type(e).__name__}: {str(e)}")
             logger.error(f"[REST_CLIENT] Unexpected error in generate_content: {type(e).__name__}: {e!s}")
             raise
 

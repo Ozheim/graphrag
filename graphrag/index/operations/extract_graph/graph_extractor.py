@@ -143,8 +143,8 @@ class GraphExtractor:
     async def _process_document(
         self, text: str, prompt_variables: dict[str, str]
     ) -> str:
-        print(f"!!! _process_document called, text length: {len(text)}")
-        print(f"!!! About to call self._model.achat(), model type: {type(self._model).__name__}")
+        # print(f"!!! _process_document called, text length: {len(text)}")
+        # print(f"!!! About to call self._model.achat(), model type: {type(self._model).__name__}")
         
         response = await self._model.achat(
             self._extraction_prompt.format(**{
@@ -154,9 +154,9 @@ class GraphExtractor:
         )
         
         results = response.output.content or ""
-        print(f"!!! achat returned, response content length: {len(results)}")
-        print(f"!!! First 500 chars of response: {results[:500]}")
-        print(f"!!! Last 200 chars of response: {results[-200:]}")
+        # print(f"!!! achat returned, response content length: {len(results)}")
+        # print(f"!!! First 500 chars of response: {results[:500]}")
+        # print(f"!!! Last 200 chars of response: {results[-200:]}")
 
         # if gleanings are specified, enter a loop to extract more entities
         # there are two exit criteria: (a) we hit the configured max, (b) the model says there are no more entities
