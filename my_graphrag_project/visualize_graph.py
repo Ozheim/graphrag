@@ -9,25 +9,25 @@ from pathlib import Path
 # Configuration
 output_dir = Path("output")
 
-print("📊 Chargement des données...")
+print("Chargement des données...")
 
 # Charger les entités et relations
 entities = pd.read_parquet(output_dir / "entities.parquet")
 relationships = pd.read_parquet(output_dir / "relationships.parquet")
 
-print(f"✅ {len(entities)} entités chargées")
-print(f"✅ {len(relationships)} relations chargées")
+print(f"{len(entities)} entités chargées")
+print(f"{len(relationships)} relations chargées")
 
 # Afficher les premières entités
-print("\n🏢 Premières entités extraites :")
+print("\nPremières entités extraites :")
 print(entities[['title', 'type', 'description']].head(10).to_string())
 
 # Afficher les premières relations
-print("\n🔗 Premières relations extraites :")
+print("\nPremières relations extraites :")
 print(relationships[['source', 'target', 'description']].head(10).to_string())
 
 # Créer le graphe NetworkX
-print("\n🔨 Création du graphe...")
+print("\nCréation du graphe...")
 G = nx.Graph()
 
 # Ajouter les nœuds (entités)
@@ -46,22 +46,22 @@ for _, rel in relationships.iterrows():
         description=rel.get('description', '')[:100]
     )
 
-print(f"✅ Graphe créé : {G.number_of_nodes()} nœuds, {G.number_of_edges()} arêtes")
+print(f"Graphe créé : {G.number_of_nodes()} nœuds, {G.number_of_edges()} arêtes")
 
 # Statistiques
-print("\n📈 Statistiques du graphe :")
+print("\nStatistiques du graphe :")
 print(f"  - Densité : {nx.density(G):.3f}")
 print(f"  - Composantes connexes : {nx.number_connected_components(G)}")
 
 # Top 10 des nœuds les plus connectés
 degree_dict = dict(G.degree())
 sorted_nodes = sorted(degree_dict.items(), key=lambda x: x[1], reverse=True)[:10]
-print("\n🌟 Top 10 des entités les plus connectées :")
+print("\nTop 10 des entités les plus connectées :")
 for node, degree in sorted_nodes:
     print(f"  - {node}: {degree} connexions")
 
 # Visualisation
-print("\n🎨 Création de la visualisation...")
+print("\nCréation de la visualisation...")
 plt.figure(figsize=(20, 16))
 
 # Layout : spring_layout pour une disposition automatique
@@ -114,9 +114,9 @@ plt.tight_layout()
 # Sauvegarder
 output_file = "knowledge_graph.png"
 plt.savefig(output_file, dpi=300, bbox_inches='tight', facecolor='white')
-print(f"\n✅ Graphe sauvegardé : {output_file}")
+print(f"\nGraphe sauvegardé : {output_file}")
 
 # Afficher
 plt.show()
 
-print("\n🎉 Terminé !")
+print("\nTerminé !")

@@ -26,7 +26,7 @@ class VertexAIRestClient:
         proxy: str | None = None,
     ):
         """Initialize Vertex AI REST client."""
-        print(f"!!! VertexAIRestClient __init__: project={project}, location={location}, model={model}")
+        # print(f"!!! VertexAIRestClient __init__: project={project}, location={location}, model={model}")
         
         self.project = project
         self.location = location
@@ -39,19 +39,20 @@ class VertexAIRestClient:
         else:
             self.base_url = f"https://{location}-aiplatform.googleapis.com"
         
-        print(f"!!! VertexAIRestClient: base_url={self.base_url}")
+        # print(f"!!! VertexAIRestClient: base_url={self.base_url}")
         
         # Get credentials for authentication
-        print("!!! VertexAIRestClient: Calling google.auth.default()...")
+        # print("!!! VertexAIRestClient: Calling google.auth.default()...")
         try:
             self.credentials, _ = default()
-            print(f"!!! VertexAIRestClient: Credentials obtained successfully")
+            # print(f"!!! VertexAIRestClient: Credentials obtained successfully")
         except Exception as e:
-            print(f"!!! VertexAIRestClient: google.auth.default() FAILED: {type(e).__name__}: {e!s}")
+            # print(f"!!! VertexAIRestClient: google.auth.default() FAILED: {type(e).__name__}: {e!s}")
+            logger.error(f"ADC authentication failed: {type(e).__name__}: {e!s}")
             raise
         
         # Configure session with proxy
-        print("!!! VertexAIRestClient: Configuring session with proxy...")
+        # print("!!! VertexAIRestClient: Configuring session with proxy...")
         self.session = requests.Session()
         if self.proxy:
             self.session.proxies = {
@@ -60,7 +61,7 @@ class VertexAIRestClient:
             }
             logger.info(f"REST client configured with proxy: {self.proxy}")
         
-        print("!!! VertexAIRestClient: Initialization complete")
+        # print("!!! VertexAIRestClient: Initialization complete")
 
     def _get_access_token(self) -> str:
         """Get fresh access token."""
@@ -120,8 +121,8 @@ class VertexAIRestClient:
                 body["generationConfig"]["responseMimeType"] = "application/json"
             
             # Log the request structure to confirm safetySettings are sent
-            print(f"!!! REST_CLIENT: Making POST request. Prompt len: {len(prompt)}")
-            print(f"!!! REST_CLIENT: Body keys: {list(body.keys())}")
+            # print(f"!!! REST_CLIENT: Making POST request. Prompt len: {len(prompt)}")
+            # print(f"!!! REST_CLIENT: Body keys: {list(body.keys())}")
             
             # ---------------------------------------------------------
             # 2. SEND REQUEST
@@ -129,7 +130,7 @@ class VertexAIRestClient:
             # Timeout increased to 180s for large chunks
             response = self.session.post(url, headers=headers, json=body, timeout=180)
             
-            print(f"!!! REST_CLIENT: Response status: {response.status_code}")
+            # print(f"!!! REST_CLIENT: Response status: {response.status_code}")
             
             if response.status_code != 200:
                 logger.error(f"[REST_CLIENT] HTTP Error {response.status_code}: {response.text[:500]}")
@@ -138,47 +139,46 @@ class VertexAIRestClient:
             result = response.json()
 
             # ---------------------------------------------------------
-            # 3. EXPLICIT DIAGNOSTIC LOGGING
+            # 3. EXPLICIT DIAGNOSTIC LOGGING (commented out for clean logs)
             # This block prints the exact reason why Google stopped generating
             # ---------------------------------------------------------
-            print("\n" + "="*50)
-            print("!!! GOOGLE API RESPONSE DIAGNOSTIC !!!")
+            # print("\n" + "="*50)
+            # print("!!! GOOGLE API RESPONSE DIAGNOSTIC !!!")
             
             if "candidates" in result and len(result["candidates"]) > 0:
                 candidate = result["candidates"][0]
                 
                 # 3a. Check Finish Reason (STOP, SAFETY, RECITATION, etc.)
                 finish_reason = candidate.get("finishReason", "UNKNOWN")
-                print(f"!!! FINISH REASON: {finish_reason}")
+                # print(f"!!! FINISH REASON: {finish_reason}")
                 
                 # 3b. Check Safety Ratings (did we get close to a block?)
-                if "safetyRatings" in candidate:
-                    print("!!! SAFETY SCORES:")
-                    for rating in candidate["safetyRatings"]:
-                        category = rating.get("category", "UNKNOWN").replace("HARM_CATEGORY_", "")
-                        probability = rating.get("probability", "UNKNOWN")
-                        blocked = rating.get("blocked", False)
-                        print(f"   - {category}: {probability} (Blocked: {blocked})")
+                # if "safetyRatings" in candidate:
+                #     print("!!! SAFETY SCORES:")
+                #     for rating in candidate["safetyRatings"]:
+                #         category = rating.get("category", "UNKNOWN").replace("HARM_CATEGORY_", "")
+                #         probability = rating.get("probability", "UNKNOWN")
+                #         blocked = rating.get("blocked", False)
+                #         print(f"   - {category}: {probability} (Blocked: {blocked})")
 
                 # 3c. Check Content Presence
-                if "content" in candidate and "parts" in candidate["content"]:
-                    print("!!! CONTENT STATUS: Content received successfully.")
-                else:
-                    print("!!! CONTENT STATUS: [EMPTY] - The model returned no text!")
+                # if "content" in candidate and "parts" in candidate["content"]:
+                #     print("!!! CONTENT STATUS: Content received successfully.")
+                # else:
+                #     print("!!! CONTENT STATUS: [EMPTY] - The model returned no text!")
 
-                # 3d. Urgent Alerts
+                # 3d. Urgent Alerts - Only log critical failures
                 if finish_reason == "SAFETY":
-                    print("!!! CRITICAL FAILURE: Request blocked by Safety Filters.")
+                    logger.error("CRITICAL: Request blocked by Safety Filters")
                 elif finish_reason == "RECITATION":
-                    print("!!! CRITICAL FAILURE: Request blocked by Copyright/Recitation.")
+                    logger.error("CRITICAL: Request blocked by Copyright/Recitation")
                 elif finish_reason == "MAX_TOKENS":
-                    print("!!! WARNING: Response truncated (max_tokens reached).")
+                    logger.warning("Response truncated (max_tokens reached)")
 
             else:
-                print("!!! ERROR: No 'candidates' list in response. Raw response below:")
-                print(json.dumps(result, indent=2))
+                logger.error(f"No 'candidates' in response: {json.dumps(result, indent=2)}")
                 
-            print("="*50 + "\n")
+            # print("="*50 + "\n")
             # ---------------------------------------------------------
             
             return result

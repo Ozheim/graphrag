@@ -180,13 +180,24 @@ async def _run_embeddings(
     text_embed_config: dict,
 ) -> pd.DataFrame:
     """All the steps to generate single embedding."""
-    data["embedding"] = await embed_text(
-        input=data,
-        callbacks=callbacks,
-        cache=cache,
-        embed_column=embed_column,
-        embedding_name=name,
-        strategy=text_embed_config["strategy"],
-    )
-
-    return data.loc[:, ["id", "embedding"]]
+    # print(f"!!! RUN_EMBEDDINGS: Starting for '{name}', rows={len(data)}, column={embed_column}")
+    # logger.info(f"Starting embedding generation for '{name}' with {len(data)} rows")
+    
+    try:
+        data["embedding"] = await embed_text(
+            input=data,
+            callbacks=callbacks,
+            cache=cache,
+            embed_column=embed_column,
+            embedding_name=name,
+            strategy=text_embed_config["strategy"],
+        )
+        # print(f"!!! RUN_EMBEDDINGS: Completed for '{name}'")
+        # logger.info(f"Completed embedding generation for '{name}'")
+        
+        return data.loc[:, ["id", "embedding"]]
+        
+    except Exception as e:
+        # print(f"!!! RUN_EMBEDDINGS: ERROR for '{name}': {type(e).__name__}: {str(e)}")
+        logger.error(f"Failed to generate embeddings for '{name}': {type(e).__name__}: {str(e)}", exc_info=True)
+        raise

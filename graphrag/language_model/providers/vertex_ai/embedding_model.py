@@ -33,8 +33,8 @@ class VertexAIEmbeddingModel:
             vertex_location: GCP Location (overrides config)
             **kwargs: Additional arguments
         """
-        print(f"!!! VERTEX AI EMBEDDING MODEL __INIT__ CALLED !!! name={name}, config.type={getattr(config, 'type', 'NO_TYPE')}")
-        logger.error(f"!!! VERTEX AI EMBEDDING MODEL __INIT__ CALLED !!! name={name}")
+        # print(f"!!! VERTEX AI EMBEDDING MODEL __INIT__ CALLED !!! name={name}, config.type={getattr(config, 'type', 'NO_TYPE')}")
+        # logger.error(f"!!! VERTEX AI EMBEDDING MODEL __INIT__ CALLED !!! name={name}")
         
         from graphrag.language_model.providers.vertex_ai.rest_client import (
             VertexAIRestClient,

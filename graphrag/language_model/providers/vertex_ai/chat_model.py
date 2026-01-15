@@ -39,28 +39,28 @@ class VertexAIChatModel:
             **kwargs: Additional arguments
         """
        
-        logger.error(f" VERTEX AI CHAT MODEL __INIT__ CALLED name={name}")
+        # logger.error(f" VERTEX AI CHAT MODEL __INIT__ CALLED name={name}")
         
-        print("Step 1: Importing VertexAIRestClient...")
+        # print("Step 1: Importing VertexAIRestClient...")
         from graphrag.language_model.providers.vertex_ai.rest_client import (
             VertexAIRestClient,
         )
-        print("Step 1: OK")
+        # print("Step 1: OK")
 
-        print("Step 2: Setting name and config...")
+        # print("Step 2: Setting name and config...")
         self.name = name
         self.config = config
-        print(" Step 2: OK")
+        # print(" Step 2: OK")
 
         # Get project and location from kwargs or config
-        print(" Step 3: Getting project and location...")
+        # print(" Step 3: Getting project and location...")
         self.project = vertex_project or getattr(config, "vertex_project", None)
         self.location = vertex_location or getattr(config, "vertex_location", None)
         model_name = config.model or "gemini-pro"
-        print(f" Step 3: OK - project={self.project}, location={self.location}, model={model_name}")
+        # print(f" Step 3: OK - project={self.project}, location={self.location}, model={model_name}")
         
         # Use REST client for proxy compatibility
-        print(" Step 4: Creating REST client...")
+        # print(" Step 4: Creating REST client...")
         try:
             self.rest_client = VertexAIRestClient(
                 project=self.project,
@@ -69,14 +69,14 @@ class VertexAIChatModel:
                 api_endpoint=config.api_base,
                 proxy=config.proxy,
             )
-            print(f"Step 4: REST client created successfully")
+            # print(f"Step 4: REST client created successfully")
             logger.info(f"Vertex AI Chat Model ready (REST): {model_name}")
         except Exception as e:
-            print(f"Step 4: FAILED - {type(e).__name__}: {e!s}")
+            # print(f"Step 4: FAILED - {type(e).__name__}: {e!s}")
             logger.error(f"Vertex AI init failed: {type(e).__name__}: {e!s}")
             raise
         
-        print("__INIT__ COMPLETED SUCCESSFULLY")
+        # print("__INIT__ COMPLETED SUCCESSFULLY")
 
     async def achat(
         self, prompt: str, history: list | None = None, **kwargs: Any
@@ -98,9 +98,9 @@ class VertexAIChatModel:
             BaseModelResponse,
         )
 
-        logger.info(f"[CHAT_MODEL] achat called with prompt length: {len(prompt)}")
+        # logger.info(f"[CHAT_MODEL] achat called with prompt length: {len(prompt)}")
         result = self.chat(prompt, history, **kwargs)
-        logger.info(f"[CHAT_MODEL] Response content length: {len(result.output.content)}")
+        # logger.info(f"[CHAT_MODEL] Response content length: {len(result.output.content)}")
         return result
 
     async def achat_stream(
@@ -154,14 +154,14 @@ class VertexAIChatModel:
         try:
            
             response = self.rest_client.generate_content(prompt, **config_kwargs)
-            logger.warning(f"[CHAT_MODEL] REST response received: {str(response)[:200]}")
+            # logger.warning(f"[CHAT_MODEL] REST response received: {str(response)[:200]}")
         except Exception as e:
             logger.error(f"[CHAT_MODEL] REST client failed: {type(e).__name__}: {e!s}")
             raise
         
         # Extract text from response
         content = response.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
-        logger.warning(f"[CHAT_MODEL] Extracted content length: {len(content)}")
+        # logger.warning(f"[CHAT_MODEL] Extracted content length: {len(content)}")
 
         # Handle JSON parsing if requested
         parsed_response = None

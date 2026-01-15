@@ -4,6 +4,7 @@
 """The LanceDB vector storage implementation package."""
 
 import json  # noqa: I001
+import logging
 from typing import Any
 import pyarrow as pa
 import numpy as np
@@ -16,6 +17,8 @@ from graphrag.vector_stores.base import (
     VectorStoreSearchResult,
 )
 import lancedb
+
+logger = logging.getLogger(__name__)
 
 
 class LanceDBVectorStore(BaseVectorStore):
@@ -39,66 +42,94 @@ class LanceDBVectorStore(BaseVectorStore):
         self, documents: list[VectorStoreDocument], overwrite: bool = True
     ) -> None:
         """Load documents into vector storage."""
-        # Step 1: Prepare data columns manually
-        ids = []
-        texts = []
-        vectors = []
-        attributes = []
+        # print(f"!!! LANCEDB: Starting load_documents, count={len(documents)}, overwrite={overwrite}")
+        # logger.info(f"Loading {len(documents)} documents into LanceDB, overwrite={overwrite}")
+        
+        try:
+            # Step 1: Prepare data columns manually
+            ids = []
+            texts = []
+            vectors = []
+            attributes = []
 
-        for document in documents:
-            self.vector_size = (
-                len(document.vector) if document.vector else self.vector_size
-            )
-            if document.vector is not None and len(document.vector) == self.vector_size:
-                ids.append(document.id)
-                texts.append(document.text)
-                vectors.append(np.array(document.vector, dtype=np.float32))
-                attributes.append(json.dumps(document.attributes))
-
-        # Step 2: Handle empty case
-        if len(ids) == 0:
-            data = None
-        else:
-            # Step 3: Flatten the vectors and build FixedSizeListArray manually
-            flat_vector = np.concatenate(vectors).astype(np.float32)
-            flat_array = pa.array(flat_vector, type=pa.float32())
-            vector_column = pa.FixedSizeListArray.from_arrays(
-                flat_array, self.vector_size
-            )
-
-            # Step 4: Create PyArrow table (let schema be inferred)
-            data = pa.table({
-                self.id_field: pa.array(ids, type=pa.string()),
-                self.text_field: pa.array(texts, type=pa.string()),
-                self.vector_field: vector_column,
-                self.attributes_field: pa.array(attributes, type=pa.string()),
-            })
-
-        # NOTE: If modifying the next section of code, ensure that the schema remains the same.
-        #       The pyarrow format of the 'vector' field may change if the order of operations is changed
-        #       and will break vector search.
-        if overwrite:
-            if data:
-                self.document_collection = self.db_connection.create_table(
-                    self.index_name if self.index_name else "",
-                    data=data,
-                    mode="overwrite",
-                    schema=data.schema,
+            for document in documents:
+                self.vector_size = (
+                    len(document.vector) if document.vector else self.vector_size
                 )
+                if document.vector is not None and len(document.vector) == self.vector_size:
+                    ids.append(document.id)
+                    texts.append(document.text)
+                    vectors.append(np.array(document.vector, dtype=np.float32))
+                    attributes.append(json.dumps(document.attributes))
+
+            # print(f"!!! LANCEDB: Prepared {len(ids)} valid documents (filtered from {len(documents)})")
+            # logger.info(f"Prepared {len(ids)} valid documents out of {len(documents)}")
+
+            # Step 2: Handle empty case
+            if len(ids) == 0:
+                # print("!!! LANCEDB: WARNING - No valid documents to load (all filtered out)")
+                logger.warning("No valid documents to load - all documents were filtered out")
+                data = None
             else:
-                self.document_collection = self.db_connection.create_table(
-                    self.index_name if self.index_name else "", mode="overwrite"
+                # print(f"!!! LANCEDB: Creating PyArrow table, vector_size={self.vector_size}")
+                # Step 3: Flatten the vectors and build FixedSizeListArray manually
+                flat_vector = np.concatenate(vectors).astype(np.float32)
+                flat_array = pa.array(flat_vector, type=pa.float32())
+                vector_column = pa.FixedSizeListArray.from_arrays(
+                    flat_array, self.vector_size
                 )
-            self.document_collection.create_index(
-                vector_column_name=self.vector_field, index_type="IVF_FLAT"
-            )
-        else:
-            # add data to existing table
-            self.document_collection = self.db_connection.open_table(
-                self.index_name if self.index_name else ""
-            )
-            if data:
-                self.document_collection.add(data)
+
+                # Step 4: Create PyArrow table (let schema be inferred)
+                data = pa.table({
+                    self.id_field: pa.array(ids, type=pa.string()),
+                    self.text_field: pa.array(texts, type=pa.string()),
+                    self.vector_field: vector_column,
+                    self.attributes_field: pa.array(attributes, type=pa.string()),
+                })
+                # print(f"!!! LANCEDB: PyArrow table created successfully, rows={data.num_rows}")
+
+            # NOTE: If modifying the next section of code, ensure that the schema remains the same.
+            #       The pyarrow format of the 'vector' field may change if the order of operations is changed
+            #       and will break vector search.
+            if overwrite:
+                # print(f"!!! LANCEDB: Creating table with overwrite, index_name={self.index_name}")
+                if data:
+                    self.document_collection = self.db_connection.create_table(
+                        self.index_name if self.index_name else "",
+                        data=data,
+                        mode="overwrite",
+                        schema=data.schema,
+                    )
+                    # print(f"!!! LANCEDB: Table created, creating IVF_FLAT index on {self.vector_field}...")
+                else:
+                    self.document_collection = self.db_connection.create_table(
+                        self.index_name if self.index_name else "", mode="overwrite"
+                    )
+                    # print(f"!!! LANCEDB: Empty table created")
+                
+                self.document_collection.create_index(
+                    vector_column_name=self.vector_field, index_type="IVF_FLAT"
+                )
+                # print(f"!!! LANCEDB: Index created successfully")
+                logger.info(f"Created table and index for {self.index_name}")
+            else:
+                # add data to existing table
+                # print(f"!!! LANCEDB: Appending to existing table {self.index_name}")
+                self.document_collection = self.db_connection.open_table(
+                    self.index_name if self.index_name else ""
+                )
+                if data:
+                    self.document_collection.add(data)
+                    # print(f"!!! LANCEDB: Data appended successfully, added {data.num_rows} rows")
+                    logger.info(f"Appended {data.num_rows} rows to {self.index_name}")
+            
+            # print(f"!!! LANCEDB: load_documents completed successfully")
+            # logger.info(f"Successfully loaded documents into {self.index_name}")
+            
+        except Exception as e:
+            # print(f"!!! LANCEDB: ERROR during load_documents: {type(e).__name__}: {str(e)}")
+            logger.error(f"Failed to load documents into LanceDB: {type(e).__name__}: {str(e)}", exc_info=True)
+            raise
 
     def filter_by_id(self, include_ids: list[str] | list[int]) -> Any:
         """Build a query filter to filter documents by id."""

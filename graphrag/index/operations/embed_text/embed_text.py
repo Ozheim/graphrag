@@ -176,7 +176,18 @@ async def _text_embed_with_vector_store(
             )
             documents.append(document)
 
-        vector_store.load_documents(documents, overwrite and i == 0)
+        # print(f"!!! EMBED_TEXT: About to call vector_store.load_documents(), batch {i+1}/{num_total_batches}, docs={len(documents)}")
+        # logger.info(f"Loading batch {i+1}/{num_total_batches} with {len(documents)} documents into vector store")
+        
+        try:
+            vector_store.load_documents(documents, overwrite and i == 0)
+            # print(f"!!! EMBED_TEXT: vector_store.load_documents() completed successfully for batch {i+1}")
+            # logger.info(f"Successfully loaded batch {i+1}/{num_total_batches}")
+        except Exception as e:
+            # print(f"!!! EMBED_TEXT: ERROR in vector_store.load_documents(): {type(e).__name__}: {str(e)}")
+            logger.error(f"Failed to load batch {i+1}/{num_total_batches}: {type(e).__name__}: {str(e)}", exc_info=True)
+            raise
+        
         starting_index += len(documents)
         i += 1
 
